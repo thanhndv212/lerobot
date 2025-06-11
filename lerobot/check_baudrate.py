@@ -241,7 +241,7 @@ def scan_feetech_bus(port):
                     }
                     motors_at_baudrate.append(motor_info)
                     print(
-                        f"  Found motor ID {motor_id}: {model_name} (model #{model_number})"
+                        f"  Found motor ID {motor_id}: {model_name} (model #{model_number}) at {test_baudrate} baud"
                     )
 
             if motors_at_baudrate:
@@ -526,7 +526,7 @@ def set_motor_baudrate(port, motor_id, new_baudrate_value):
 # This script provides functions to check and diagnose Feetech motor baudrates
 # Add the new functions to the existing script
 if __name__ == "__main__":
-    comprehensive_port_check()
+    # comprehensive_port_check()
 
     # Example usage of Feetech-specific functions
     print("\n" + "=" * 70)
@@ -537,11 +537,16 @@ if __name__ == "__main__":
     test_port = "/dev/tty.usbserial-0001"  # Update this to your actual port
 
     # Uncomment and modify these lines to test with your setup:
-    print("\n" + "=" * 70)
-    scan_feetech_bus(test_port)
-    print("\n" + "=" * 70)
-    check_feetech_motor_baudrate(test_port, motor_id=1)
-    print("\n" + "=" * 70)
-    check_feetech_motor_detailed(test_port, motor_id=1)
-    print("\n" + "=" * 70)
-    diagnose_baudrate_mismatch(test_port, motor_id=1)
+    found_motors = scan_feetech_bus(test_port)
+    if found_motors:
+        print("\nFound motors:")
+        for baudrate, motors in found_motors.items():
+            print(f"Baudrate {baudrate}:")
+            for motor in motors:
+                print(f"  ID {motor['id']}: {motor['model_name']} (#{motor['model_number']})")
+                print("\n" + "=" * 70)
+                check_feetech_motor_baudrate(test_port, motor_id=motor['id'])
+                print("\n" + "=" * 70)
+                check_feetech_motor_detailed(test_port, motor_id=motor['id'])
+                print("\n" + "=" * 70)
+                diagnose_baudrate_mismatch(test_port, motor_id=motor['id'])
