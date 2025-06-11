@@ -182,6 +182,7 @@ class FeetechMotorsBus(MotorsBus):
 
         for baudrate in search_baudrates:
             self.set_baudrate(baudrate)
+            print(f"Searching for motor '{motor}' (model '{model}') on {baudrate=}.")
             id_model = self.broadcast_ping()
             if id_model:
                 found_id, found_model = next(iter(id_model.items()))
@@ -191,6 +192,7 @@ class FeetechMotorsBus(MotorsBus):
                         f"model number '{found_model}' different than the one expected: '{expected_model_nb}'. "
                         f"Make sure you are connected only connected to the '{motor}' motor (model '{model}')."
                     )
+                print(f"Found motor '{motor}' (model '{model}') on {baudrate=} with id={found_id}.")
                 return baudrate, found_id
 
         raise RuntimeError(f"Motor '{motor}' (model '{model}') was not found. Make sure it is connected.")

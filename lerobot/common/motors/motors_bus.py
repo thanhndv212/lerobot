@@ -542,7 +542,10 @@ class MotorsBus(abc.ABC):
         self._write(addr, length, target_id, baudrate_value)
 
         self.set_baudrate(self.default_baudrate)
-
+        print(
+            f"Setting up motor '{motor}' (ID: {initial_id}, model: {model}) to ID {target_id} "
+            f"and from baudrate {initial_baudrate} to baud-rate {self.get_baudrate()}."
+        )
     @abc.abstractmethod
     def _find_single_motor(self, motor: str, initial_baudrate: int | None) -> tuple[int, int]:
         pass
