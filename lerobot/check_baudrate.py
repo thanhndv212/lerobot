@@ -390,9 +390,143 @@ def check_feetech_motor_detailed(port, motor_id=1):
         return False
 
 
+def diagnose_baudrate_mismatch(port, motor_id=1):
+    """Diagnose why stored baudrate differs from working baudrate"""
+    import scservo_sdk as scs
+
+    print(f"\n=== BAUDRATE MISMATCH DIAGNOSIS ===")
+
+    # Test USB-serial controller capabilities
+    # Your controller might not support 1,000,000 baud
+    # Common USB-serial chips and their max rates:
+    # - FTDI FT232R: ~3 Mbaud (supports 1M)
+    # - CP2102: ~921.6K (does NOT support 1M)
+    # - CH340: ~2 Mbaud (supports 1M)
+    # - PL2303: varies by version
+    # example:  Silicon Labs CP2102 USB to UART Bridge Controller
+    print("1. Testing USB-serial controller capabilities:")
+    controller_supported = []
+    for baudrate in [115200, 230400, 460800, 500000, 921600, 1000000]:
+        try:
+            with serial.Serial(port, baudrate, timeout=0.1) as ser:
+                controller_supported.append(baudrate)
+                print(f"   ✓ Controller supports: {baudrate}")
+        except:
+            print(f"   ✗ Controller fails at: {baudrate}")
+
+    # Test motor communication at each supported rate
+    print("\n2. Testing motor communication:")
+    working_baudrates = []
+    motor_register_value = None
+
+    for baudrate in controller_supported:
+        try:
+            port_handler = scs.PortHandler(port)
+            packet_handler = scs.PacketHandler(0)
+
+            if port_handler.openPort():
+                port_handler.setBaudRate(baudrate)
+                model_number, comm, error = packet_handler.ping(
+                    port_handler, motor_id
+                )
+
+                if comm == scs.COMM_SUCCESS and error == 0:
+                    working_baudrates.append(baudrate)
+                    print(f"   ✓ Motor responds at: {baudrate}")
+
+                    # Read motor's baudrate register
+                    if motor_register_value is None:
+                        reg_val, _, _ = packet_handler.read1ByteTxRx(
+                            port_handler, motor_id, 6
+                        )
+                        motor_register_value = reg_val
+
+                port_handler.closePort()
+        except Exception as e:
+            print(f"   ✗ Error testing {baudrate}: {e}")
+
+    # Analysis
+    print(f"\n3. Analysis:")
+    feetech_baudrates = {
+        0: 1_000_000,
+        1: 500_000,
+        2: 250_000,
+        3: 128_000,
+        4: 115_200,
+        5: 57_600,
+        6: 38_400,
+        7: 19_200,
+    }
+
+    if motor_register_value is not None:
+        configured_baudrate = feetech_baudrates.get(
+            motor_register_value, "Unknown"
+        )
+        print(
+            f"   Motor register says: {configured_baudrate} (value: {motor_register_value})"
+        )
+        print(f"   Motor actually works at: {working_baudrates}")
+
+        if configured_baudrate not in controller_supported:
+            print(
+                f"   🔍 DIAGNOSIS: USB-serial controller doesn't support {configured_baudrate}"
+            )
+            print(
+                f"      Motor falls back to highest supported rate: {max(working_baudrates)}"
+            )
+        elif configured_baudrate not in working_baudrates:
+            print(
+                f"   🔍 DIAGNOSIS: Hardware/cable issue preventing {configured_baudrate}"
+            )
+            print(
+                f"      Try: shorter cable, better power supply, different controller"
+            )
+        else:
+            print(
+                f"   🔍 DIAGNOSIS: Configuration mismatch or firmware behavior"
+            )
+
+    return {
+        "controller_supported": controller_supported,
+        "motor_working": working_baudrates,
+        "motor_register": motor_register_value,
+        "configured_baudrate": feetech_baudrates.get(
+            motor_register_value, "Unknown"
+        ),
+    }
+
+
+def set_motor_baudrate(port, motor_id, new_baudrate_value):
+    """Set motor baudrate register to match controller capability"""
+    # new_baudrate_value: 4 = 115200, 1 = 500000, 0 = 1000000
+    import scservo_sdk as scs
+
+    port_handler = scs.PortHandler(port)
+    packet_handler = scs.PacketHandler(0)
+
+    # Connect at current working baudrate (115200)
+    port_handler.openPort()
+    port_handler.setBaudRate(115200)
+
+    # Write new baudrate to register 6
+    result, error = packet_handler.write1ByteTxRx(
+        port_handler, motor_id, 6, new_baudrate_value
+    )
+
+    if result == scs.COMM_SUCCESS and error == 0:
+        print(
+            f"Successfully updated motor baudrate register to value {new_baudrate_value}"
+        )
+    else:
+        print(f"Failed to update baudrate: result={result}, error={error}")
+
+    port_handler.closePort()
+
+
+# This script provides functions to check and diagnose Feetech motor baudrates
 # Add the new functions to the existing script
 if __name__ == "__main__":
-    # comprehensive_port_check()
+    comprehensive_port_check()
 
     # Example usage of Feetech-specific functions
     print("\n" + "=" * 70)
@@ -409,3 +543,5 @@ if __name__ == "__main__":
     check_feetech_motor_baudrate(test_port, motor_id=1)
     print("\n" + "=" * 70)
     check_feetech_motor_detailed(test_port, motor_id=1)
+    print("\n" + "=" * 70)
+    diagnose_baudrate_mismatch(test_port, motor_id=1)
