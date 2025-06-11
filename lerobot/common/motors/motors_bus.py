@@ -373,10 +373,36 @@ class MotorsBus(abc.ABC):
         expected_models = {m.id: self.model_number_table[m.model] for m in self.motors.values()}
 
         found_models = {}
-        for id_ in self.ids:
-            model_nb = self.ping(id_)
-            if model_nb is not None:
-                found_models[id_] = model_nb
+        # for id_ in self.ids:
+        for m in self.motors.values():
+            id_ = m.id
+            model = m.model
+            model_nb = self.broadcast_ping()
+            search_baudrates = self.model_baudrate_table[model]
+            expected_model_nb = self.model_number_table[model]
+
+            for baudrate in search_baudrates:
+                self.set_baudrate(baudrate)
+                print(
+                    f"Searching for motor id '{id_}' (model '{model}') on {baudrate=}."
+                )
+                # id_model = self.broadcast_ping()
+                # if id_model:
+                #     found_id, found_model = next(iter(id_model.items()))
+                #     if found_model != expected_model_nb:
+                #         raise RuntimeError(
+                #             f"Found one motor on {baudrate=} with id={found_id} but it has a "
+                #             f"model number '{found_model}' different than the one expected: '{expected_model_nb}'. "
+                #             f"Make sure you are connected only connected to the '{id_}' motor (model '{model}')."
+                #         )
+                #     print(
+                #         f"Found motor '{id_}' (model '{model}') on {baudrate=} with id={found_id}."
+                #     )
+                #     model_nb = found_model
+                model_nb = self.ping(id_)
+                if model_nb is not None:
+                    found_models[id_] = model_nb
+                    break
 
         missing_ids = [id_ for id_ in self.ids if id_ not in found_models]
         wrong_models = {

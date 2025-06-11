@@ -217,6 +217,7 @@ class FeetechMotorsBus(MotorsBus):
                             f"model number '{found_model}' different than the one expected: '{expected_model_nb}'. "
                             f"Make sure you are connected only connected to the '{motor}' motor (model '{model}')."
                         )
+                    print(f"Found motor '{motor}' (model '{model}') on {baudrate=} with id={id_}.")
                     return baudrate, id_
 
         raise RuntimeError(f"Motor '{motor}' (model '{model}') was not found. Make sure it is connected.")
