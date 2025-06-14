@@ -534,7 +534,9 @@ if __name__ == "__main__":
     print("=" * 70)
 
     # Replace with your actual port
-    test_port = "/dev/tty.usbserial-0001"  # Update this to your actual port
+    test_port = (
+        "/dev/tty.usbmodem5A460827181"  # Update this to your actual port
+    )
 
     # Uncomment and modify these lines to test with your setup:
     found_motors = scan_feetech_bus(test_port)
